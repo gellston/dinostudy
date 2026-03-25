@@ -101,7 +101,7 @@ class Block(nn.Module):
 class ConvNeXtV2(nn.Module):
     def __init__(
         self,
-        in_chans=3,
+        in_channels=3,
         num_classes=1,
         depths=[3, 3, 9, 3],
         dims=[96, 192, 384, 768],
@@ -114,7 +114,7 @@ class ConvNeXtV2(nn.Module):
         self.downsample_layers = nn.ModuleList()
 
         self.stem = nn.Sequential(
-            nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4),
+            nn.Conv2d(in_channels, dims[0], kernel_size=4, stride=4),
             LayerNorm2d(dims[0], eps=1e-6),
         )
         self.downsample_layers.append(self.stem)
