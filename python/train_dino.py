@@ -23,25 +23,25 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ## Hyper Parameter
 epochs = 100
-batch_size=1
+batch_size=3
 global_size = 1024
-local_size = 448
-local_crops_number = 8
+local_size = 224
+local_crops_number = 6
 lr=1e-4
-min_lr=1e-6
-weight_decay=1e-4
+min_lr=1e-7
+weight_decay=1e-5
 save_dir = r'C:\github\dinostudy\weights'
 ## Hyper Parameter
 
 
 ## Special Hyper Param
 embed_dim = 320
-out_dim = 4086
+out_dim = 65536
 hidden_dim = 2048
 bottleneck_dim = 256
 
 student_temp = 0.1
-teacher_temp_warmup = 0.02
+teacher_temp_warmup = 0.04
 teacher_temp_final = 0.07
 teacher_temp_warmup_epochs = 10
 
@@ -60,11 +60,11 @@ scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
 
 dataset = DinoCropDataset(root_dir=r"C:\github\dataset\dino_test",
-                          global_size=1024,
-                          local_size=448,
-                          global_scale_aug=(0.95, 1.0),
-                          local_scale_aug=(0.95, 1.0),
-                          local_crops_number=2)
+                          global_size=global_size,
+                          local_size=local_size,
+                          global_scale_aug=(0.95, 1.05),
+                          local_scale_aug=(0.95, 1.05),
+                          local_crops_number=local_crops_number)
 
 loader = DataLoader(
     dataset,

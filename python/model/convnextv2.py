@@ -149,6 +149,15 @@ class ConvNeXtV2(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
+
+    def forward_intermediates(self, x):
+        outputs = []
+        for i in range(4):
+            x = self.downsample_layers[i](x)
+            x = self.stages[i](x)
+            outputs.append(x)
+        return outputs
+
     def forward_features(self, x):
         for i in range(4):
             x = self.downsample_layers[i](x)
