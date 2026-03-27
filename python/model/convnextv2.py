@@ -4,6 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils.helper import LayerNorm2d
+from utils.helper import GRN2d
+
 def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
     def norm_cdf(x):
         return (1. + math.erf(x / math.sqrt(2.))) / 2.
@@ -44,31 +47,7 @@ class DropPath(nn.Module):
 
         return x * random_tensor
 
-class LayerNorm2d(nn.Module):
-    def __init__(self, num_channels, eps=1e-6):
-        super().__init__()
-        self.norm = nn.LayerNorm(num_channels, eps=eps)
 
-    def forward(self, x):
-        # x: (N, C, H, W)
-        x = x.permute(0, 2, 3, 1)   # -> (N, H, W, C)
-        x = self.norm(x)
-        x = x.permute(0, 3, 1, 2)   # -> (N, C, H, W)
-        return x
-
-
-class GRN2d(nn.Module):
-    def __init__(self, dim, eps=1e-6):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.zeros(1, dim, 1, 1))
-        self.beta = nn.Parameter(torch.zeros(1, dim, 1, 1))
-        self.eps = eps
-
-    def forward(self, x):
-        # x: (N, C, H, W)
-        gx = torch.norm(x, p=2, dim=(2, 3), keepdim=True)              # (N, C, 1, 1)
-        nx = gx / (gx.mean(dim=1, keepdim=True) + self.eps)            # (N, C, 1, 1)
-        return self.gamma * (x * nx) + self.beta + x
 
 
 class Block(nn.Module):

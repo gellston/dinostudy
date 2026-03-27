@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 import utils.sparse as sparse
 
+
 def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
     def norm_cdf(x):
         return (1. + math.erf(x / math.sqrt(2.))) / 2.
@@ -72,7 +73,7 @@ class Block(nn.Module):
         return x
 
 
-class  ConvNeXtV2_MAE(nn.Module):
+class ConvNeXtV2_MAE(nn.Module):
     def __init__(
         self,
         in_channels=3,
@@ -125,6 +126,11 @@ class  ConvNeXtV2_MAE(nn.Module):
 
 
     def forward_intermediates(self, x):
+
+        _, _, h, w = x.shape
+        #mask = sparse._get_active_ex_or_ii(h, w, returning_active_ex=True)
+        #x = x * mask
+
         outputs = []
         for i in range(4):
             x = self.downsample_layers[i](x)
@@ -133,6 +139,11 @@ class  ConvNeXtV2_MAE(nn.Module):
         return outputs
 
     def forward_features(self, x):
+
+        _, _, h, w = x.shape
+        #mask = sparse._get_active_ex_or_ii(h, w, returning_active_ex=True)
+        #x = x * mask
+
         for i in range(4):
             x = self.downsample_layers[i](x)
             x = self.stages[i](x)

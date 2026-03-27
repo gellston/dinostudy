@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-# skimage가 설치되어 있다면 사용하여 속도를 높일 수 있습니다. (pip install scikit-image)
-# 여기서는 호환성을 위해 OpenCV/Numpy로만 구현합니다.
+
+
 
 class MAEDataset(Dataset):
     def __init__(
@@ -55,7 +55,7 @@ class MAEDataset(Dataset):
             raise ValueError(f"이미지 로드 실패: {path}")
 
         h, w = img.shape[:2]
-        global_crops = []
+        #global_crops = []
         g_coords = []
 
         scale = random.uniform(self.global_scale_aug[0], self.global_scale_aug[1])
@@ -77,10 +77,9 @@ class MAEDataset(Dataset):
 
         # [C] 리사이즈 및 텐서화
         crop = cv2.resize(crop, (self.global_size, self.global_size), interpolation=cv2.INTER_CUBIC)
-        crop = torch.from_numpy(crop.astype(np.float32) / 255.0).unsqueeze(0)
-        global_crops.append(crop)
+        crop = torch.from_numpy(crop.astype(np.float32) / 255.0).unsqueeze(0).float()
 
         return {
-            "global_crops": global_crops,
+            "global_crops": crop,
             "path": path
         }

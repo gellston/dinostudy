@@ -28,15 +28,7 @@ def make_cur_active(B, H, W, prob, device=None):
     if device is None:
         device = torch.device("cpu")
 
-    mask = torch.zeros((B, 1, H, W), device=device)
-
-    for b in range(B):
-        for i in range(H):
-            for j in range(W):
-                if torch.rand(1, device=device).item() < prob:
-                    mask[b, 0, i, j] = 1.0
-                else:
-                    mask[b, 0, i, j] = 0.0
+    mask = (torch.rand(B, 1, H, W, device=device) < prob).float()
 
     global _cur_active
     _cur_active = mask
