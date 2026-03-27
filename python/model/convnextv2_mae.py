@@ -72,7 +72,7 @@ class Block(nn.Module):
         return x
 
 
-class ConvNeXtV2_MAE(nn.Module):
+class  ConvNeXtV2_MAE(nn.Module):
     def __init__(
         self,
         in_channels=3,
