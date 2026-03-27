@@ -6,17 +6,22 @@ import time
 import math
 import os
 
-import torch.nn.functional as F
 
-from torch.optim.adamw import AdamW
 
-from torch.utils.data import DataLoader
-from dataset.dinocropdataset import DinoCropDataset
+from utils.sparse import make_cur_active
+
+from utils.helper import copy_weights_ignore_name
 
 from model.convnextv2 import convnextv2_atto
+from model.convnextv2_mae import convnextv2_mae_atto
 from model.projection import projection
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+
+
 
 
 ## Hyper Parameter
@@ -29,4 +34,19 @@ save_dir = r'C:\github\dinostudy\weights'
 
 
 
-encoder_backbone = convnextv2_atto(in_channels=1).to(device)
+encoder_backbone_normal = convnextv2_atto(in_channels=1).to(device)
+encoder_backbone2_mae = convnextv2_mae_atto(in_channels=1).to(device)
+
+
+copy_weights_ignore_name(encoder_backbone2_mae, encoder_backbone_normal)
+
+x = torch.randn(2, 1, 224, 224).to(device)
+
+
+make_cur_active(2, 56, 56, 1.0, device=x.device)
+
+
+y1 = encoder_backbone_normal(x)
+y2 = encoder_backbone2_mae(x)
+
+print('test')

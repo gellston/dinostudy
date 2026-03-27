@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import utils.sparse as sparse
+
 def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
     def norm_cdf(x):
         return (1. + math.erf(x / math.sqrt(2.))) / 2.
@@ -34,7 +36,7 @@ class DropPath(nn.Module):
     def forward(self, x):
         if self.drop_prob == 0.0 or not self.training:
             return x
-
+        
         keep_prob = 1.0 - self.drop_prob
         shape = (x.shape[0],) + (1,) * (x.ndim - 1)
         random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
@@ -44,43 +46,18 @@ class DropPath(nn.Module):
 
         return x * random_tensor
 
-class LayerNorm2d(nn.Module):
-    def __init__(self, num_channels, eps=1e-6):
-        super().__init__()
-        self.norm = nn.LayerNorm(num_channels, eps=eps)
-
-    def forward(self, x):
-        # x: (N, C, H, W)
-        x = x.permute(0, 2, 3, 1)   # -> (N, H, W, C)
-        x = self.norm(x)
-        x = x.permute(0, 3, 1, 2)   # -> (N, C, H, W)
-        return x
-
-
-class GRN2d(nn.Module):
-    def __init__(self, dim, eps=1e-6):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.zeros(1, dim, 1, 1))
-        self.beta = nn.Parameter(torch.zeros(1, dim, 1, 1))
-        self.eps = eps
-
-    def forward(self, x):
-        # x: (N, C, H, W)
-        gx = torch.norm(x, p=2, dim=(2, 3), keepdim=True)              # (N, C, 1, 1)
-        nx = gx / (gx.mean(dim=1, keepdim=True) + self.eps)            # (N, C, 1, 1)
-        return self.gamma * (x * nx) + self.beta + x
-
 
 class Block(nn.Module):
     """ConvNeXtV2 Block (NCHW, 1x1 Conv, GRN2d version)"""
     def __init__(self, dim, drop_path=0.0):
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
-        self.norm = LayerNorm2d(dim, eps=1e-6)
-        self.pwconv1 = nn.Conv2d(dim, 4 * dim, kernel_size=1)
+
+        self.dwconv = sparse.SparseConv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        self.norm = sparse.SparseLayerNorm2d(dim, eps=1e-6)
+        self.pwconv1 = sparse.SparseConv2d(dim, 4 * dim, kernel_size=1)
         self.act = nn.GELU()
-        self.grn = GRN2d(4 * dim)
-        self.pwconv2 = nn.Conv2d(4 * dim, dim, kernel_size=1)
+        self.grn = sparse.SparseGRN2d(4 * dim)
+        self.pwconv2 = sparse.SparseConv2d(4 * dim, dim, kernel_size=1)
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
@@ -95,7 +72,7 @@ class Block(nn.Module):
         return x
 
 
-class ConvNeXtV2(nn.Module):
+class ConvNeXtV2_MAE(nn.Module):
     def __init__(
         self,
         in_channels=3,
@@ -111,15 +88,15 @@ class ConvNeXtV2(nn.Module):
         self.downsample_layers = nn.ModuleList()
 
         self.stem = nn.Sequential(
-            nn.Conv2d(in_channels, dims[0], kernel_size=4, stride=4),
-            LayerNorm2d(dims[0], eps=1e-6),
+            sparse.SparseConv2d(in_channels, dims[0], kernel_size=4, stride=4),
+            sparse.SparseLayerNorm2d(dims[0], eps=1e-6),
         )
         self.downsample_layers.append(self.stem)
 
         for i in range(3):
             downsample_layer = nn.Sequential(
-                LayerNorm2d(dims[i], eps=1e-6),
-                nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
+                sparse.SparseLayerNorm2d(dims[i], eps=1e-6),
+                sparse.SparseConv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
             )
             self.downsample_layers.append(downsample_layer)
 
@@ -169,33 +146,33 @@ class ConvNeXtV2(nn.Module):
         return x
 
 
-def convnextv2_atto(**kwargs):
-    return ConvNeXtV2(depths=[2, 2, 6, 2], dims=[40, 80, 160, 320], **kwargs)
+def convnextv2_mae_atto(**kwargs):
+    return ConvNeXtV2_MAE(depths=[2, 2, 6, 2], dims=[40, 80, 160, 320], **kwargs)
 
 
-def convnextv2_femto(**kwargs):
-    return ConvNeXtV2(depths=[2, 2, 6, 2], dims=[48, 96, 192, 384], **kwargs)
+def convnextv2_mae_femto(**kwargs):
+    return ConvNeXtV2_MAE(depths=[2, 2, 6, 2], dims=[48, 96, 192, 384], **kwargs)
 
 
-def convnextv2_pico(**kwargs):
-    return ConvNeXtV2(depths=[2, 2, 6, 2], dims=[64, 128, 256, 512], **kwargs)
+def convnextv2_mae_pico(**kwargs):
+    return ConvNeXtV2_MAE(depths=[2, 2, 6, 2], dims=[64, 128, 256, 512], **kwargs)
 
 
-def convnextv2_nano(**kwargs):
-    return ConvNeXtV2(depths=[2, 2, 8, 2], dims=[80, 160, 320, 640], **kwargs)
+def convnextv2_mae_nano(**kwargs):
+    return ConvNeXtV2_MAE(depths=[2, 2, 8, 2], dims=[80, 160, 320, 640], **kwargs)
 
 
-def convnextv2_tiny(**kwargs):
-    return ConvNeXtV2(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
+def convnextv2_mae_tiny(**kwargs):
+    return ConvNeXtV2_MAE(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
 
 
-def convnextv2_base(**kwargs):
-    return ConvNeXtV2(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024], **kwargs)
+def convnextv2_mae_base(**kwargs):
+    return ConvNeXtV2_MAE(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024], **kwargs)
 
 
-def convnextv2_large(**kwargs):
-    return ConvNeXtV2(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536], **kwargs)
+def convnextv2_mae_large(**kwargs):
+    return ConvNeXtV2_MAE(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536], **kwargs)
 
 
-def convnextv2_huge(**kwargs):
-    return ConvNeXtV2(depths=[3, 3, 27, 3], dims=[352, 704, 1408, 2816], **kwargs)
+def convnextv2_mae_huge(**kwargs):
+    return ConvNeXtV2_MAE(depths=[3, 3, 27, 3], dims=[352, 704, 1408, 2816], **kwargs)
